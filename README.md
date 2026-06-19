@@ -34,31 +34,31 @@ A partir del video de un partido (cámara cenital), el sistema:
 
 2\. \*\*Proyecta\*\* las posiciones del video al plano real del campo (182 × 243 cm)
 
-&#x20;  mediante homografía, obteniendo coordenadas en centímetros.
+  mediante homografía, obteniendo coordenadas en centímetros.
 
 3\. \*\*Calcula métricas\*\* por robot: distancia recorrida y velocidad (cm, cm/s),
 
-&#x20;  con filtro anti-salto.
+  con filtro anti-salto.
 
 4\. \*\*Detecta eventos\*\*: posesión, pases, disparos a portería, colisiones y goles.
 
 5\. \*\*Genera análisis tácticos\*\*, cada uno como PNG y MP4:
 
-&#x20;  - Heatmap de posiciones por equipo
+  - Heatmap de posiciones por equipo
 
-&#x20;  - Mapa de posesión
+  - Mapa de posesión
 
-&#x20;  - Diagrama de Voronoi (territorio dominado)
+  - Diagrama de Voronoi (territorio dominado)
 
-&#x20;  - Grafo de interacción (eventos del partido)
+  - Grafo de interacción (eventos del partido)
 
 6\. \*\*Reconstruye el partido en 3D\*\* (Blender 4.3.2, EEVEE Next): estadio, robots
 
-&#x20;  animados, balón, marcador dinámico, público, sistema multi-cámara y proyección
+  animados, balón, marcador dinámico, público, sistema multi-cámara y proyección
 
-&#x20;  del heatmap/Voronoi sobre el césped (con toggles). Incluye un narrador "pato"
+  del heatmap/Voronoi sobre el césped (con toggles). Incluye un narrador "pato"
 
-&#x20;  con lip-sync.
+  con lip-sync.
 
 
 
