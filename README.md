@@ -74,41 +74,41 @@ A partir del video de un partido (cámara cenital), el sistema:
 
 Video del partido
 
-&#x20;     │
+     │
 
-&#x20;     ▼
+     ▼
 
 YOLOv8 + ByteTrack ──► Detección y tracking (Robot, Ball)
 
-&#x20;     │
+     │
 
-&#x20;     ▼
+     ▼
 
 Homografía ──► Coordenadas reales del campo (cm)
 
-&#x20;     │
+     │
 
-&#x20;     ├──► Métricas (distancia, velocidad)
+     ├──► Métricas (distancia, velocidad)
 
-&#x20;     ├──► Eventos (posesión, pases, disparos, colisiones, goles)
+     ├──► Eventos (posesión, pases, disparos, colisiones, goles)
 
-&#x20;     │
+     │
 
-&#x20;     ▼
+     ▼
 
 Análisis tácticos (PNG + MP4):
 
-&#x20;  heatmap · posesión · Voronoi · grafo de interacción
+  heatmap · posesión · Voronoi · grafo de interacción
 
-&#x20;     │
+     │
 
-&#x20;     ▼
+     ▼
 
 JSON para Blender + secuencias PNG
 
-&#x20;     │
+     │
 
-&#x20;     ▼
+     ▼
 
 Reconstrucción 3D (Blender) + narrador
 
