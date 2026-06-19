@@ -1,8 +1,8 @@
-Coloca aquí los modelos 3D de los robots:
-  - robot_azul.blend
-  - robot_amarillo.blend
-
-Descárgalos desde la carpeta de Google Drive (ver README, sección "Assets pesados").
-En Drive se llaman Robot1.blend y Robot2.blend — renómbralos al colocarlos aquí.
-
-Si no colocas los .blend, el motor 3D genera robots de respaldo automáticamente.
+ultralytics==8.3.0
+torch==2.5.1
+torchvision==0.20.1
+opencv-python==4.10.0.84
+numpy==1.26.4
+scipy==1.14.1
+sounddevice==0.5.1
+soundfile==0.12.1

@@ -1,12 +1,19 @@
 """
 motor_3d_partido.py — Motor 3D + selector de partidos + proyección en césped
 =============================================================================
-TODO LOCAL EN WINDOWS. Escanea renders\blender, lista los JSON, y al cargar
-un partido proyecta su heatmap y Voronoi sobre el césped (toggles en el panel).
+VERSIÓN OPTIMIZADA:
+  - Público DESACTIVADO (era el mayor costo de framerate). ACTIVAR_PUBLICO=True para volver.
+  - Capas de proyección SIN auto-refresh (no leen PNG del disco en cada frame).
 
-Corre en Blender: Scripting → New → pegar → Run Script (Alt+P).
+Corre en Blender: Scripting → abrir este archivo → Run Script (Alt+P).
 Luego: N → pestaña "Partido" → elige partido → "Cargar partido".
-Toggles de Heatmap / Voronoi en el panel.
+
+═══════════════════════════════════════════════════════════════════════════
+ IMPORTANTE — RUTAS:
+   Edita BASE_DIR_MANUAL abajo con la ruta del repo EN TU PC. Es necesario
+   porque Blender no detecta la ubicación del script de forma fiable cuando
+   se corre desde el editor interno. Cada equipo pone aquí su propia ruta.
+═══════════════════════════════════════════════════════════════════════════
 """
 
 import bpy
@@ -15,17 +22,41 @@ import os
 import math
 import random
 import glob
+from pathlib import Path
 from mathutils import Vector
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  CONFIG — rutas locales de Windows
+#  CONFIG — EDITA ESTO con la ruta del repo en tu PC
 # ═══════════════════════════════════════════════════════════════════════════
-PROY = r"C:\Users\rodri\cv_curso_proyecto\renders"
-CARPETA_JSON     = os.path.join(PROY, "blender")     # <nombre>.json
-CARPETA_ANALISIS = os.path.join(PROY, "analisis")    # <nombre>\heatmap_seq, voronoi_seq
+BASE_DIR_MANUAL = r"C:\Users\rodri\Copa-FutBotMX"   # <-- CAMBIA según tu máquina
 
-MODELO_AZUL     = r"C:\Users\rodri\Downloads\Meshy_AI_Circular_mechanical_d_0618162003_texture.blend"
-MODELO_AMARILLO = r"C:\Users\rodri\Downloads\Meshy_AI_Orbital_Puzzle_Ring_0618161936_texture.blend"
+def _resolver_base_dir():
+    if BASE_DIR_MANUAL:
+        return Path(BASE_DIR_MANUAL)
+    try:
+        return Path(__file__).resolve().parent.parent
+    except NameError:
+        pass
+    env = os.environ.get("COPA_FUTBOT_DIR")
+    if env and os.path.isdir(env):
+        return Path(env)
+    if bpy.data.filepath:
+        return Path(bpy.path.abspath("//")).resolve()
+    return Path(os.getcwd())
+
+BASE_DIR = _resolver_base_dir()
+print(f"[motor_3d] BASE_DIR = {BASE_DIR}")
+
+PROY             = str(BASE_DIR / "resultados" / "renders")
+CARPETA_JSON     = os.path.join(PROY, "blender")
+CARPETA_ANALISIS = os.path.join(PROY, "analisis")
+
+MODELO_AZUL     = str(BASE_DIR / "blender" / "modelos" / "robot_azul.blend")
+MODELO_AMARILLO = str(BASE_DIR / "blender" / "modelos" / "robot_amarillo.blend")
+
+# ── Opciones de rendimiento ──
+ACTIVAR_PUBLICO    = False   # True para volver a generar el público
+CAPAS_AUTO_REFRESH = False   # True para que heatmap/voronoi se animen (más lento)
 
 ESCALA_BLENDER = 0.01
 RADIO_BALON    = 0.03
@@ -88,7 +119,6 @@ def construir_estadio(CAMPO_W, CAMPO_H):
     mat_piso    = _material("Mat_Piso",    (0.2, 0.2, 0.22, 1))
     mat_grada   = _material("Mat_Grada",   (0.3, 0.35, 0.45, 1), rough=0.4, metal=0.3)
 
-    # Césped — guardamos referencia para proyectar el heatmap/voronoi encima
     bpy.ops.mesh.primitive_plane_add(size=2, location=(W/2, H/2, 0))
     c = bpy.context.active_object
     c.name = "Cesped"
@@ -172,35 +202,29 @@ def construir_estadio(CAMPO_W, CAMPO_H):
             g.name = f"Grada_{lado}_{e}"; g.scale = (sx, sy, ae)
             g.data.materials.append(mat_grada)
 
-    print("✅ Estadio construido")
+    print("Estadio construido")
     return W, H
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  PROYECCIÓN EN CÉSPED — heatmap y voronoi como planos con textura animada
+#  PROYECCIÓN EN CÉSPED
 # ═══════════════════════════════════════════════════════════════════════════
 def crear_capa_proyeccion(nombre, carpeta_seq, prefijo, W, H, z_offset, n_frames):
-    """
-    Crea un plano sobre el césped con una secuencia de imágenes (PNG por frame)
-    como textura animada. Compatible con Blender 4.3+ (EEVEE Next).
-    """
     if not os.path.isdir(carpeta_seq):
-        print(f"⚠️ No hay secuencia para {nombre}: {carpeta_seq}")
+        print(f"[aviso] No hay secuencia para {nombre}: {carpeta_seq}")
         return None
 
     pngs = sorted(glob.glob(os.path.join(carpeta_seq, f"{prefijo}_*.png")))
     if not pngs:
-        print(f"⚠️ Sin PNGs en {carpeta_seq}")
+        print(f"[aviso] Sin PNGs en {carpeta_seq}")
         return None
 
     try:
-        # Plano que cubre el campo (centrado), un pelín sobre el césped
         bpy.ops.mesh.primitive_plane_add(size=1, location=(W/2, H/2, z_offset))
         plano = bpy.context.active_object
         plano.name = nombre
         plano.scale = (W, H, 1)
         plano.rotation_euler = (0, 0, 0)
 
-        # Material con la imagen como textura, emisivo
         mat = bpy.data.materials.new(f"Mat_{nombre}")
         mat.use_nodes = True
         nt = mat.node_tree
@@ -212,45 +236,46 @@ def crear_capa_proyeccion(nombre, carpeta_seq, prefijo, W, H, z_offset, n_frames
         mix = nt.nodes.new("ShaderNodeMixShader")
         tex = nt.nodes.new("ShaderNodeTexImage")
 
-        # Cargar la primera imagen como secuencia
         img = bpy.data.images.load(pngs[0])
-        img.source = 'SEQUENCE'
-        tex.image = img
-        tex.image_user.frame_duration = n_frames
-        tex.image_user.frame_start = 1
-        tex.image_user.frame_offset = 0
-        tex.image_user.use_auto_refresh = True
-        tex.interpolation = 'Linear'
 
+        if CAPAS_AUTO_REFRESH:
+            img.source = 'SEQUENCE'
+            tex.image = img
+            tex.image_user.frame_duration = n_frames
+            tex.image_user.frame_start = 1
+            tex.image_user.frame_offset = 0
+            tex.image_user.use_auto_refresh = True
+        else:
+            img.source = 'FILE'
+            tex.image = img
+
+        tex.interpolation = 'Linear'
         emis.inputs["Strength"].default_value = 1.5
 
-        # Conexiones: alfa controla mezcla transparente <-> emisión
         nt.links.new(tex.outputs["Color"], emis.inputs["Color"])
         nt.links.new(tex.outputs["Alpha"], mix.inputs["Fac"])
         nt.links.new(transp.outputs["BSDF"], mix.inputs[1])
         nt.links.new(emis.outputs["Emission"], mix.inputs[2])
         nt.links.new(mix.outputs["Shader"], out.inputs["Surface"])
 
-        # Transparencia en EEVEE Next (Blender 4.3+): sin blend_method.
-        # Si la propiedad existe (versiones viejas), la usamos; si no, se ignora.
         try:
             mat.blend_method = 'BLEND'
         except (AttributeError, TypeError):
             pass
 
         plano.data.materials.append(mat)
-        # Empieza OCULTA — el juez la prende con el toggle
         plano.hide_viewport = True
         plano.hide_render = True
-        print(f"✅ Capa '{nombre}': {len(pngs)} frames (oculta por defecto)")
+        modo = "animada" if CAPAS_AUTO_REFRESH else "fija"
+        print(f"Capa '{nombre}': {len(pngs)} frames (textura {modo}, oculta por defecto)")
         return plano
 
     except Exception as e:
-        print(f"❌ ERROR creando capa '{nombre}': {type(e).__name__}: {e}")
+        print(f"[ERROR] creando capa '{nombre}': {type(e).__name__}: {e}")
         return None
 
 # ═══════════════════════════════════════════════════════════════════════════
-#  LUCES / PÚBLICO / MARCADOR / MODELOS  (igual que tu motor)
+#  LUCES / PÚBLICO / MARCADOR / MODELOS
 # ═══════════════════════════════════════════════════════════════════════════
 def crear_luces_estadio(CAMPO_W, CAMPO_H):
     W, H = cm(CAMPO_W), cm(CAMPO_H)
@@ -259,9 +284,12 @@ def crear_luces_estadio(CAMPO_W, CAMPO_H):
     luz.name = "Luz_Cenital"
     luz.data.energy = 350
     luz.data.size = cm(300)
-    print("✅ Luz cenital creada")
+    print("Luz cenital creada")
 
 def crear_publico(CAMPO_W, CAMPO_H):
+    if not ACTIVAR_PUBLICO:
+        print("Público desactivado (ACTIVAR_PUBLICO = False)")
+        return
     W, H = cm(CAMPO_W), cm(CAMPO_H)
     mg = cm(32)
     px1, py1 = -mg, -mg
@@ -297,7 +325,7 @@ def crear_publico(CAMPO_W, CAMPO_H):
         for f in range(1, scene.frame_end+1, 20):
             fan.location.z = base_z + (cm(4) if (f//20 + offset) % 2 == 0 else 0)
             fan.keyframe_insert(data_path="location", index=2, frame=f+offset%20)
-    print(f"✅ Público: {len(fans)} aficionados")
+    print(f"Público: {len(fans)} aficionados")
 
 def crear_marcador_dinamico(CAMPO_W, CAMPO_H, frames):
     W, H = cm(CAMPO_W), cm(CAMPO_H)
@@ -336,18 +364,38 @@ def crear_marcador_dinamico(CAMPO_W, CAMPO_H, frames):
     for h in otros:
         bpy.app.handlers.frame_change_post.append(h)
     bpy.app.handlers.frame_change_post.append(actualizar_marcador)
-    print("✅ Marcador dinámico creado")
+    print("Marcador dinámico creado")
 
-def importar_modelo(blend_path, nombre):
+def crear_robot_respaldo(nombre, color):
+    bpy.ops.mesh.primitive_cylinder_add(radius=cm(7), depth=cm(12), location=(0, 0, cm(6)))
+    cuerpo = bpy.context.active_object
+    cuerpo.name = nombre
+    mat = _material(f"Mat_{nombre}", (*color, 1), emision=0.2, metal=0.4, rough=0.3)
+    cuerpo.data.materials.append(mat)
+    bpy.ops.mesh.primitive_cube_add(size=1, location=(0, cm(5), cm(12)))
+    cab = bpy.context.active_object
+    cab.scale = (cm(4), cm(3), cm(3))
+    cab.data.materials.append(mat)
+    bpy.ops.object.select_all(action='DESELECT')
+    cuerpo.select_set(True); cab.select_set(True)
+    bpy.context.view_layer.objects.active = cuerpo
+    bpy.ops.object.join()
+    m = bpy.context.active_object
+    m.name = nombre
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    return m
+
+def importar_modelo(blend_path, nombre, color_respaldo=(0.2, 0.4, 1.0)):
     if not os.path.exists(blend_path):
-        print(f"⚠️ No existe: {blend_path}")
-        return None
+        print(f"[aviso] No existe modelo {blend_path} — usando robot de respaldo")
+        return crear_robot_respaldo(nombre, color_respaldo)
     with bpy.data.libraries.load(blend_path, link=False) as (df, dt):
         dt.objects = [o for o in df.objects]
     imp = [o for o in dt.objects if o and o.type == 'MESH']
     for o in imp:
         bpy.context.collection.objects.link(o)
-    if not imp: return None
+    if not imp:
+        return crear_robot_respaldo(nombre, color_respaldo)
     bpy.ops.object.select_all(action='DESELECT')
     for o in imp: o.select_set(True)
     bpy.context.view_layer.objects.active = imp[0]
@@ -366,7 +414,6 @@ def importar_modelo(blend_path, nombre):
 #  CONSTRUIR PARTIDO COMPLETO
 # ═══════════════════════════════════════════════════════════════════════════
 def construir_partido(json_path):
-    """Borra la escena y reconstruye todo + capas de proyección."""
     bpy.ops.object.select_all(action='SELECT')
     bpy.ops.object.delete()
     for h in list(bpy.app.handlers.frame_change_post):
@@ -394,7 +441,6 @@ def construir_partido(json_path):
     crear_publico(CAMPO_W, CAMPO_H)
     crear_marcador_dinamico(CAMPO_W, CAMPO_H, frames)
 
-    # ── Capas de proyección (heatmap + voronoi) sobre el césped ──
     nombre_partido = os.path.splitext(os.path.basename(json_path))[0]
     dir_seq = os.path.join(CARPETA_ANALISIS, nombre_partido)
     crear_capa_proyeccion("Capa_Heatmap",
@@ -403,17 +449,16 @@ def construir_partido(json_path):
     crear_capa_proyeccion("Capa_Voronoi",
                           os.path.join(dir_seq, "voronoi_seq"), "voro",
                           W, H, z_offset=0.015, n_frames=n_frames)
-    # Asegurar que ambas capas empiecen ocultas (viewport + render)
     for n in ["Capa_Heatmap", "Capa_Voronoi"]:
         o = bpy.data.objects.get(n)
         if o:
-            o.hide_set(True)          # ocultar en el viewport (el "ojo")
-            o.hide_viewport = True    # ocultar en el monitor
-            o.hide_render = True      # ocultar en el render
+            o.hide_set(True)
+            o.hide_viewport = True
+            o.hide_render = True
 
     print("Importando modelos...")
-    base_azul = importar_modelo(MODELO_AZUL, "Base_Azul")
-    base_amar = importar_modelo(MODELO_AMARILLO, "Base_Amarillo")
+    base_azul = importar_modelo(MODELO_AZUL, "Base_Azul", color_respaldo=(0.1, 0.4, 1.0))
+    base_amar = importar_modelo(MODELO_AMARILLO, "Base_Amarillo", color_respaldo=(1.0, 0.85, 0.0))
 
     ids = sorted({rid for fr in frames for rid in fr["robots"].keys()}, key=lambda x: int(x))
     robots_obj = {}
@@ -452,7 +497,6 @@ def construir_partido(json_path):
             balon.location = (cm(bx), cm(CAMPO_H - by), RADIO_BALON)
             balon.keyframe_insert(data_path="location", frame=fb)
 
-    cx, cy = cm(CAMPO_W/2), cm(CAMPO_H/2)
     camaras = {}
     def crear_camara(nombre, loc, rot=None, lente=None):
         cd = bpy.data.cameras.new(nombre)
@@ -478,7 +522,6 @@ def construir_partido(json_path):
         ct.target = obj; ct.track_axis = 'TRACK_NEGATIVE_Z'; ct.up_axis = 'UP_Y'
     scene.camera = camaras["Fija_Cenital"]
 
-    # Motor de render: EEVEE Next en Blender 4.3+, EEVEE clásico en versiones viejas
     motores = {e.identifier for e in
                bpy.types.RenderSettings.bl_rna.properties['engine'].enum_items}
     if 'BLENDER_EEVEE_NEXT' in motores:
@@ -490,7 +533,7 @@ def construir_partido(json_path):
     scene.render.filepath = os.path.join(PROY, "render_")
     scene.frame_set(1)
 
-    print(f"✅ Partido cargado: {len(robots_obj)} robots + balón + estadio")
+    print(f"Partido cargado: {len(robots_obj)} robots + balón + estadio")
     return len(robots_obj), n_frames
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -545,8 +588,8 @@ class PARTIDO_OT_toggle_capa(bpy.types.Operator):
     def execute(self, context):
         o = bpy.data.objects.get(self.capa)
         if o:
-            visible = o.hide_viewport          # estado actual (True = oculta)
-            nuevo_oculto = not visible         # invertir
+            visible = o.hide_viewport
+            nuevo_oculto = not visible
             o.hide_set(nuevo_oculto)
             o.hide_viewport = nuevo_oculto
             o.hide_render = nuevo_oculto
@@ -572,14 +615,12 @@ class PARTIDO_PT_panel(bpy.types.Panel):
     bl_category = "Partido"
     def draw(self, context):
         layout = self.layout
-
         box = layout.box()
         box.label(text="Seleccionar partido:", icon='FILE_FOLDER')
         box.prop(context.scene, "partido_seleccionado", text="")
         box.operator("partido.cargar", text="Cargar partido", icon='IMPORT')
         box.label(text="[OK] con marcador   [--] sin marcador")
 
-        # ── Toggles de capas (solo si están cargadas) ──
         cap_h = bpy.data.objects.get("Capa_Heatmap")
         cap_v = bpy.data.objects.get("Capa_Voronoi")
         if cap_h or cap_v:
@@ -625,8 +666,7 @@ bpy.types.Scene.partido_seleccionado = bpy.props.EnumProperty(
     items=escanear_partidos,
 )
 
-print("\n✅ PANEL 'Partido' LISTO (todo local)")
+print("\nPANEL 'Partido' LISTO")
 print(f"   JSON: {CARPETA_JSON}")
 print(f"   Análisis: {CARPETA_ANALISIS}")
-print("\n📋 USO: N → 'Partido' → elige → 'Cargar partido'")
-print("   Prende/apaga Heatmap y Voronoi con los toggles.")
+print("\nUSO: N -> 'Partido' -> elige -> 'Cargar partido'")

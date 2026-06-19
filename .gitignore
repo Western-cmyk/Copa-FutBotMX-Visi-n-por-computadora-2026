@@ -1,4 +1,4 @@
-# --- Modelos 3D pesados (van en Google Drive, no en el repo) ---
+# --- Modelos 3D pesados (van en Google Drive) ---
 *.blend
 *.blend1
 blender/modelos/*.blend
@@ -9,17 +9,15 @@ blender/modelos/*.blend
 runs/
 last.pt
 
-# --- Salidas generadas (renders, analisis, secuencias) ---
+# --- Salidas generadas ---
 resultados/renders/
 renders/
 *.mp4
 heatmap_seq/
 voronoi_seq/
-
-# Permite subir las capturas de ejemplo en resultados/ (PNG sueltos)
 !resultados/*.png
 
-# --- Videos crudos / datasets pesados ---
+# --- Videos crudos ---
 *.MOV
 *.mov
 *.avi
@@ -34,9 +32,6 @@ __pycache__/
 .venv/
 venv/
 env/
-
-# --- Entornos conda ---
-.conda/
 
 # --- Sistema ---
 .DS_Store

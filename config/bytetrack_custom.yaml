@@ -1,0 +1,49 @@
+# ═══════════════════════════════════════════════════════════════════════════
+#  bytetrack_custom.yaml — Config de tracking ajustada para robots
+# ═══════════════════════════════════════════════════════════════════════════
+#  Optimizada para el problema: "se crean IDs nuevos cuando un robot
+#  desaparece un momento" (oclusiones, parpadeos del detector).
+#
+#  El cambio clave es track_buffer (ver abajo). Los robots en cámara cenital
+#  fija se mueven de forma predecible, así que mantener tracks vivos más
+#  tiempo recupera el ID correcto al reaparecer sin necesidad de re-ID visual.
+# ═══════════════════════════════════════════════════════════════════════════
+
+tracker_type: bytetrack
+
+# ── Umbrales de confianza para asociación ──
+# track_high_thresh: detecciones por encima de esto se asocian en la 1a ronda.
+#   Bajarlo un poco (0.5 -> 0.4) ayuda a asociar robots medio ocluidos.
+track_high_thresh: 0.4
+
+# track_low_thresh: detecciones débiles que ByteTrack recupera en la 2a ronda.
+#   Bajarlo permite rescatar detecciones tenues (robot parcialmente tapado)
+#   en lugar de descartarlas y perder el track.
+track_low_thresh: 0.1
+
+# new_track_thresh: confianza mínima para CREAR un track nuevo.
+#   Subirlo (0.6 -> 0.7) evita crear IDs basura por detecciones espurias.
+#   Esto reduce los "IDs fantasma" que aparecen y desaparecen.
+new_track_thresh: 0.7
+
+# ── EL PARÁMETRO CLAVE para tu problema ──
+# track_buffer: cuántos frames se mantiene "vivo" un track perdido antes de
+#   descartarlo. Por defecto es 30 (1 seg a 30fps). Lo subimos a 90 (3 seg)
+#   para que un robot pueda desaparecer hasta 3 segundos y RECUPERAR su ID
+#   en vez de recibir uno nuevo.
+#   Si tus oclusiones son más largas, súbelo más (ej. 120 o 150).
+track_buffer: 90
+
+# ── Emparejamiento entre frames ──
+# match_thresh: umbral de IoU para emparejar detección con track existente.
+#   Más bajo = empareja más fácil (tolera más movimiento entre frames).
+match_thresh: 0.8
+
+# fuse_score: combina score de confianza con IoU al emparejar.
+#   True suele dar asociaciones más estables.
+fuse_score: true
+
+# ── Buffer de movimiento ──
+# Cuántos frames usa el filtro de movimiento para predecir dónde estará
+# un track perdido. Útil para reasociar tras oclusión.
+gmc_method: sparseOptFlow
