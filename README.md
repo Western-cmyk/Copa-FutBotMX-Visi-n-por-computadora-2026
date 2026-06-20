@@ -107,8 +107,8 @@ Capturas generadas por el sistema sobre un partido de ejemplo:
 
 ## 4. Videos
 
-- **Video demo (≤2 min):** [PEGAR ENLACE AQUÍ]
-- **Reel de Instagram (≥30 seg):** [PEGAR ENLACE AQUÍ]
+- **Video demo (≤2 min):** https://drive.google.com/file/d/1WuQIlbWRETnyXwF40nuMxfsBciTGkTtf/view?usp=sharing
+- **Reel de Instagram (≥30 seg):** https://www.instagram.com/reel/DZycG8fNGz-/
 
 ---
 
