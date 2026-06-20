@@ -9,6 +9,8 @@ con narrador.
 **Equipo:** 67ers · **Categoría:** Amateur · **Plataforma:** Local (Windows, GPU NVIDIA)
 Nota sobre el uso de IA: Durante el desarrollo de este proyecto se utilizaron asistentes de inteligencia artificial como apoyo: Claude Opus 4.8 (Anthropic) y Gemini 3.1 Flash-Lite (Google). Se emplearon para tareas de planeación, depuración de código, organización de la estructura del repositorio y redacción de documentación. El diseño del sistema, las decisiones técnicas, el entrenamiento del modelo y la integración final son trabajo del equipo 67ers.
 
+Nota sobre el uso de IA: Durante el desarrollo de este proyecto se utilizaron asistentes de inteligencia artificial como apoyo: Claude Opus 4.8 (Anthropic) y Gemini 3.1 Flash-Lite (Google). Se emplearon para tareas de planeación, depuración de código, organización de la estructura del repositorio y redacción de documentación. El diseño del sistema, las decisiones técnicas, el entrenamiento del modelo y la integración final son trabajo del equipo 67ers.
+
 
 ---
 
